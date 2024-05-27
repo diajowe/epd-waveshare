@@ -396,11 +396,11 @@ fn invert_pixel<COLOR: ColorType + PixelColor>(
 
     if COLOR::BUFFER_COUNT == 2 {
         // split buffer is for tricolor displays that use 2 buffer for 2 bits per pixel
-        buffer[index] = buffer[index] & !mask | (!buffer[index] & mask) as u8;
+        buffer[index] = buffer[index] & mask | (!buffer[index] & !mask) as u8;
         let index = index + buffer.len() / 2;
-        buffer[index] = buffer[index] & !mask | (!buffer[index] & mask) as u8;
+        buffer[index] = buffer[index] & mask | (!buffer[index] & !mask) as u8;
     } else {
-        buffer[index] = buffer[index] & !mask | (!buffer[index] & mask) as u8;
+        buffer[index] = buffer[index] & mask | (!buffer[index] & !mask) as u8;
     }
 }
 
