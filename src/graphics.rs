@@ -162,6 +162,12 @@ impl<
             pixel,
         );
     }
+
+    /// Invert a pixel's color
+    pub fn invert_pixel(&mut self, pixel: Pixel<COLOR>) {
+        invert_pixel(&mut self.buffer, WIDTH, HEIGHT, self.rotation, BWRBIT, pixel);
+    }
+
 }
 
 /// Some Tricolor specifics
@@ -293,6 +299,12 @@ impl<'a, COLOR: ColorType + PixelColor> VarDisplay<'a, COLOR> {
             pixel,
         );
     }
+
+    /// Invert a pixel's color
+    pub fn invert_pixel(&mut self, pixel: Pixel<COLOR>) {
+        let size = self.buffer_size();
+        invert_pixel(&mut self.buffer[..size], self.width, self.height, self.rotation, self.bwrbit, pixel)
+    }
 }
 
 /// Some Tricolor specifics
@@ -348,6 +360,47 @@ fn set_pixel<COLOR: ColorType + PixelColor>(
         buffer[index] = buffer[index] & mask | (bits >> 8) as u8;
     } else {
         buffer[index] = buffer[index] & mask | bits as u8;
+    }
+}
+
+// Adaption of set_pixel function to invert a pixel's color
+// Curently takes a pixel with color for internal convenience (grabbing bitmask from color)
+fn invert_pixel<COLOR: ColorType + PixelColor>(
+    buffer: &mut [u8],
+    width: u32,
+    height: u32,
+    rotation: DisplayRotation,
+    bwrbit: bool,
+    pixel: Pixel<COLOR>,
+) {
+    let Pixel(point, color) = pixel;
+
+    // final coordinates
+    let (x, y) = match rotation {
+        // as i32 = never use more than 2 billion pixel per line or per column
+        DisplayRotation::Rotate0 => (point.x, point.y),
+        DisplayRotation::Rotate90 => (width as i32 - 1 - point.y, point.x),
+        DisplayRotation::Rotate180 => (width as i32 - 1 - point.x, height as i32 - 1 - point.y),
+        DisplayRotation::Rotate270 => (point.y, height as i32 - 1 - point.x),
+    };
+
+    // Out of range check
+    if (x < 0) || (x >= width as i32) || (y < 0) || (y >= height as i32) {
+        // don't do anything in case of out of range
+        return;
+    }
+
+    let index = x as usize * COLOR::BITS_PER_PIXEL_PER_BUFFER / 8
+        + y as usize * line_bytes(width, COLOR::BITS_PER_PIXEL_PER_BUFFER);
+    let (mask, _) = color.bitmask(bwrbit, x as u32);
+
+    if COLOR::BUFFER_COUNT == 2 {
+        // split buffer is for tricolor displays that use 2 buffer for 2 bits per pixel
+        buffer[index] = buffer[index] & !mask | (!buffer[index] & mask) as u8;
+        let index = index + buffer.len() / 2;
+        buffer[index] = buffer[index] & !mask | (!buffer[index] & mask) as u8;
+    } else {
+        buffer[index] = buffer[index] & !mask | (!buffer[index] & mask) as u8;
     }
 }
 
